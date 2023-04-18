@@ -20,8 +20,8 @@ for i in range(height):
     maze[i][width-1] = '#'
 
 # 시작점과 끝점은 벽이 아님
-maze[0][width - 2] = ' '
-maze[height - 1][1] = ' '
+maze[0][width - 2] = 'S'
+maze[height - 1][1] = 'E'
     
 # 미로 생성
 stack = [(1, 1)]
@@ -66,6 +66,10 @@ while True:
         for j in range(width):
             if maze[i][j] == '#':
                 pygame.draw.rect(screen, (0, 0, 0), (j * cell_size, i * cell_size, cell_size, cell_size))
+            elif maze[i][j] == 'S':
+                pygame.draw.rect(screen, (255, 0, 0), (j * cell_size, i * cell_size, cell_size, cell_size))
+            elif maze[i][j] == 'E':
+                pygame.draw.rect(screen, (0, 255, 0), (j * cell_size, i * cell_size, cell_size, cell_size))
             else:
                 pygame.draw.rect(screen, (255, 255, 255), (j * cell_size, i * cell_size, cell_size, cell_size))
     pygame.display.update()
