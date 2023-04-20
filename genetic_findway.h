@@ -13,8 +13,8 @@
 #define DEAD_END_PENALTY 200
 #define NUM_PLAYERS 900
 
-#define ROWS 27
-#define COLS 27
+#define ROWS 25
+#define COLS 25
 
 using namespace std;
 
@@ -182,8 +182,8 @@ public:
 		this->start_position = start_position;
 		this->unique_position = set<pair<int, int>>();
 		this->unique_position.insert(start_position);
-		this->x = start_position.first + 2;
-		this->y = start_position.second + 2;
+		this->x = start_position.first;
+		this->y = start_position.second;
 
 
 	}
@@ -258,13 +258,13 @@ public:
 			&& unique_position.find(new_coordination) == unique_position.end())
 		{
 			this->MovePlayer(move);
-			return;
+			return 0;
 		}
 
 		else {
 			if (applicable_moves.size() == 1) {
-				speed = 0;
-				fitness += DEAD_END_PENALTY;
+				this->speed = 0;
+				this->fitness += DEAD_END_PENALTY;
 				return 0;
 			}
 
@@ -274,7 +274,7 @@ public:
 				set_difference(remainder.begin(), remainder.end(), position.begin(), position.end(), back_inserter(remainder));
 
 				if (remainder.empty()) {
-					speed = 0;
+					this->speed = 0;
 					return 0;
 				}
 
@@ -308,6 +308,54 @@ public:
 
 };
 
+class Maze {
+private:
+
+public:
+	int rows = ROWS;
+	int cols = COLS;
+	vector<pair<int, int>> collisions;
+	pair<int, int> goal, spawn_pos;
+	Maze() {
+		char maze[ROWS][COLS];
+
+		ifstream infile("maze.txt");
+
+		int bx = 0;
+		int by = 0;
+
+		for (int i = 0; i < ROWS; ++i) {
+			string line;
+			getline(infile, line);
+			for (int j = 0; j < COLS; ++j) {
+				
+				maze[i][j] = line[j];
+				cout << maze[i][j];
+
+				if (maze[i][j] == '#') {
+					this->collisions.push_back(make_pair(j, i));
+				}
+				else if (maze[i][j] == 'S') {
+					this->spawn_pos = make_pair(j, i);
+				}
+				else if (maze[i][j] == 'E') {
+					this->goal = make_pair(j, i);
+				}
+				
+			}
+			cout << "\n";
+			
+		}
+
+		cout << "   " << this->spawn_pos.first << ", " << this->spawn_pos.second << " is start point.\n";
+		cout << "   " << this->goal.first << ", " << this->goal.second << " is end point.\n";
+
+
+		cout << endl;
+
+	}
+};
+
 class App {
 private:
 	
@@ -324,14 +372,15 @@ public:
 	set<pair<int, int>> player_known_walls;
 	int made_it_proportion;
 	int num_moves;
+	bool is_running = false;
 
 	App() {
-		
+		this->is_running = true;
 		this->maze = Maze();
 		
 		for (int i = 0; i < this->num_players; i++)
 		{
-			this->players.emplace_back(Player(make_pair(0, 23)));
+			this->players.push_back(Player(make_pair(0, 23)));
 		}
 
 		int id = 0;
@@ -354,7 +403,7 @@ public:
 		this->players.clear();
 
 		for (int i = 0; i < this->num_players; i++) {
-			this->players.emplace_back(Player(make_pair(0, 23)));
+			this->players.push_back(Player(make_pair(0, 23)));
 		}
 
 		int id = 0;
@@ -368,9 +417,9 @@ public:
 
 	bool is_collision(int x1, int x2, int y1, int y2)
 	{
-		if (x1 >= x2 && x1 <= ROWS)
+		if (x1 >= x2 && x1 < ROWS)
 		{
-			if (y1 >= y2 && y1 <= COLS) {
+			if (y1 >= y2 && y1 < COLS) {
 				return true;
 			}
 		}
@@ -397,48 +446,18 @@ public:
 		}
 	}
 
-	void on_execute() {
-		for (auto player : players) {
+	/*void on_execute() {
+		while (this->is_running) {
 
-		}
-	}
-
-	
-};
-
-class Maze {
-private:
-	
-public:
-	int rows = ROWS;
-	int cols = COLS;
-	vector<pair<int, int>> collisions;
-	pair<int, int> goal, spawn_pos;
-	Maze() {
-		char maze[ROWS][COLS];
-
-		ifstream infile("maze.txt");
-
-		int bx = 0;
-		int by = 0;
-
-		for (int i = 0; i < ROWS; ++i) {
-			for (int j = 0; j < COLS; ++j) {
-				infile >> maze[i][j];
-				cout << maze[i][j];
-				if (maze[i][j] == '#') {
-					this->collisions.push_back(make_pair(i, j));
-				}
-				else if (maze[i][j] == 'S') {
-					this->spawn_pos = make_pair(i, j);
-				}
-				else if (maze[i][j] == 'E') {
-					this->goal = make_pair(i, j);
-				}
+			for (auto& player : this->players) {
+				vector<int> move = this->moves_array[player.id, this->turn - 1];
+				vector<int> new_move = player.CheckMove(move, player_known_walls);
 			}
-			cout << endl;
 		}
+	}*/
 
-	}
+	
 };
+
+
 
