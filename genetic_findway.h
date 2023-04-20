@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <math.h>
 #include <ctime>
-#include <Python.h>
 
 #define PLAYER_SPEED 1
 #define NUM_MOVES 200
@@ -20,31 +19,9 @@
 using namespace std;
 
 
-class Maze {
-public:
-	Maze() {
-		Py_Initialize();
-		
-		// Load the Python script and function
-		PyObject* pName = PyUnicode_FromString("module2");
-		PyObject* pModule = PyImport_Import(pName);
-		PyObject* pFunc = PyObject_GetAttrString(pModule, "initMaze");
-
-		// Call the Python function
-		PyObject_CallObject(pFunc, NULL);
-
-		// Cleanup
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
-		Py_Finalize();
-	}
-
-};
-
-
-vector<string> create_random_moves(int turns) {
-	vector<string> options{ "right", "left", "up", "down" };
-	vector<string> moves;
+vector<int> create_random_moves(int turns) {
+	vector<int> options{1,2,3,4};
+	vector<int> moves;
 
 	random_device rd;
 	mt19937 gen(rd());
@@ -74,17 +51,18 @@ int calc_move(pair<int, int> old_pos, pair<int, int> new_pos) {
 	}
 }
 
-void generateArrays(int arrays[][200], int numArrays, int arraySize) {
+void generateArrays(int arrays[][201], int numArrays, int arraySize) {
 	srand(time(NULL)); // seed the random number generator with the current time
 	for (int i = 0; i < numArrays; i++) {
-		for (int j = 0; j < arraySize; j++) {
+		arrays[i][0] = 0;
+		for (int j = 1; j < arraySize + 1; j++) {
 			arrays[i][j] = rand() % 4 + 1; // generate random number between 1 and 4
 		}
 	}
 }
 
 bool no_way(int coordination[2], int** maze) {
-	int count;
+	int count = 0;
 	if (maze[coordination[0]][coordination[1] + 1] == '#')
 		count++;
 	if (maze[coordination[0]][coordination[1] - 1] == '#')
@@ -100,9 +78,9 @@ bool no_way(int coordination[2], int** maze) {
 		return false;
 }
 
-vector<vector<string>> create_move_array(int x = NUM_PLAYERS, int y = NUM_MOVES)
+vector<vector<int>> create_move_array(int x = NUM_PLAYERS, int y = NUM_MOVES)
 {
-	vector<vector<string>> moves;
+	vector<vector<int>> moves;
 
 	for (int i = 0; i < x; i++)
 	{
@@ -125,6 +103,8 @@ int Evaluate(int suitability, int coordination[2], int next_coordination[2], int
 		suitability -= 10;
 	else if (next_coordination == End_coordination)
 		suitability += 30;
+
+	return suitability;
 }
 
 // 적합도 상위 10개 개체 중 두 개 선택
@@ -176,6 +156,9 @@ void breeding(char A[], char B[])
 
 class Player {
 private:
+	
+public:
+
 	vector<int> move_list;
 	int fitness;
 	vector<pair<int, int>> position;
@@ -184,11 +167,12 @@ private:
 	pair<int, int> start_position;
 	set<pair<int, int>> unique_position;
 	int speed = PLAYER_SPEED;
-	
+
 
 	int x;
 	int y;
-public:
+
+
 	Player(pair<int, int> start_position) {
 		this->move_list = vector<int>();
 		this->fitness = 0;
@@ -326,24 +310,82 @@ public:
 
 class App {
 private:
+	
+
+public:
 	int num_players = NUM_PLAYERS;
 	int generation = 1;
 	vector<int> average_fitness;
 	vector<int> best_fitness;
+	vector<Player> players;
 	Maze maze;
+	int turn;
+	vector<vector<int>> moves_array;
+	set<pair<int, int>> player_known_walls;
+	int made_it_proportion;
+	int num_moves;
 
-public:
 	App() {
 		
-		maze = Maze();
+		this->maze = Maze();
 		
-		vector<Player> players;
-		for (auto player : players)
+		for (int i = 0; i < this->num_players; i++)
 		{
-			players.push_back(player());
+			this->players.emplace_back(Player(make_pair(0, 23)));
 		}
 
+		int id = 0;
+		for (auto& player : this->players) {
+			player.setId(id);
+			id += 1;
+		}
+		this->turn = 1;
 
+		this->moves_array = create_move_array();
+		this->made_it_proportion = 0;
+		this->num_moves = NUM_MOVES;
+	}
+
+	void restart(vector<vector<int>> moves_list) {
+		this->generation += 1;
+		this->turn = 1;
+		this->moves_array = moves_list;
+
+		this->players.clear();
+
+		for (int i = 0; i < this->num_players; i++) {
+			this->players.emplace_back(Player(make_pair(0, 23)));
+		}
+
+		int id = 0;
+		for (auto& player : this->players) {
+			player.setId(id);
+			id += 1;
+		}
+
+		cout << "Game restarted.\n" << endl;
+	}
+
+	bool is_collision(int x1, int x2, int y1, int y2, int bsize)
+	{
+		if (x1 >= x2 && x1 <= x2 + bsize)
+		{
+			if (y1 >= y2 && y1 <= y2 + bsize) {
+				return true;
+			}
+		}
+		else return false;
+	}
+
+	void on_loop() {
+		for (auto i : this->maze.collisions)
+		{
+			for (auto player : this->players) {
+				if (is_collision(player.x, i.first, player.y, i.second, 44) {
+
+				})
+			}
+		}
 	}
 
 	void on_execute() {
@@ -357,26 +399,37 @@ public:
 
 class Maze {
 private:
+	
+public:
 	int rows = ROWS;
 	int cols = COLS;
-public:
+	vector<pair<int, int>> collisions;
+	pair<int, int> goal, spawn_pos;
 	Maze() {
 		char maze[ROWS][COLS];
 
 		ifstream infile("maze.txt");
 
-		for (int i = 0; i < ROWS; ++i) {
-			for (int j = 0; j < COLS; ++j) {
-				infile >> maze[i][j];
-			}
-		}
+		int bx = 0;
+		int by = 0;
 
 		for (int i = 0; i < ROWS; ++i) {
 			for (int j = 0; j < COLS; ++j) {
+				infile >> maze[i][j];
 				cout << maze[i][j];
+				if (maze[i][j] == '#') {
+					this->collisions.push_back(make_pair(i, j));
+				}
+				else if (maze[i][j] == 'S') {
+					this->spawn_pos = make_pair(i, j);
+				}
+				else if (maze[i][j] == 'E') {
+					this->goal = make_pair(i, j);
+				}
 			}
 			cout << endl;
 		}
+
 	}
 };
 
