@@ -107,7 +107,7 @@ int Evaluate(int suitability, int coordination[2], int next_coordination[2], int
 	return suitability;
 }
 
-// ÀûÇÕµµ »óÀ§ 10°³ °³Ã¼ Áß µÎ °³ ¼±ÅÃ
+// ì í•©ë„ ìƒìœ„ 10ê°œ ê°œì²´ ì¤‘ ë‘ ê°œ ì„ íƒ
 void breeding(char A[], char B[])
 {
 	const int ARRAY_SIZE = 200;
@@ -460,4 +460,25 @@ public:
 };
 
 
+
+
+		for (int i = 0; i < ROWS; ++i) {
+			for (int j = 0; j < COLS; ++j) {
+				infile >> maze[i][j];
+				cout << maze[i][j];
+				if (maze[i][j] == '#') {
+					this->collisions.push_back(make_pair(j, i));
+				}
+				else if (maze[i][j] == 'S') {
+					this->spawn_pos = make_pair(j, i);
+				}
+				else if (maze[i][j] == 'E') {
+					this->goal = make_pair(j, i);
+				}
+			}
+			cout << endl;
+		}
+
+	}
+};
 
