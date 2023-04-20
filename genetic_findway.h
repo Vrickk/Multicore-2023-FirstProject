@@ -366,11 +366,11 @@ public:
 		cout << "Game restarted.\n" << endl;
 	}
 
-	bool is_collision(int x1, int x2, int y1, int y2, int bsize)
+	bool is_collision(int x1, int x2, int y1, int y2)
 	{
-		if (x1 >= x2 && x1 <= x2 + bsize)
+		if (x1 >= x2 && x1 <= ROWS)
 		{
-			if (y1 >= y2 && y1 <= y2 + bsize) {
+			if (y1 >= y2 && y1 <= COLS) {
 				return true;
 			}
 		}
@@ -381,9 +381,18 @@ public:
 		for (auto i : this->maze.collisions)
 		{
 			for (auto player : this->players) {
-				if (is_collision(player.x, i.first, player.y, i.second, 44) {
+				if (is_collision(player.x, i.first, player.y, i.second)) {
+					player.speed = 0;
+					this->player_known_walls.insert(make_pair(player.x, player.y));
+				}
+			}
+		}
 
-				})
+		for (auto player : this->players) {
+			if (is_collision(player.x, this->maze.goal.first, player.y, this->maze.goal.second)) {
+				player.is_made_goal = true;
+				player.speed = 0;
+				printf("Player %d made it.\n", player.id);
 			}
 		}
 	}
