@@ -18,23 +18,6 @@
 
 using namespace std;
 
-
-vector<int> create_random_moves(int turns) {
-	vector<int> options{1,2,3,4};
-	vector<int> moves;
-
-	random_device rd;
-	mt19937 gen(rd());
-	uniform_int_distribution<> dis(0, options.size() - 1);
-
-	for (int i = 0; i < turns; i++) {
-		int rand_index = dis(gen);
-		moves.push_back(options[rand_index]);
-	}
-
-	return moves;
-}
-
 int calc_move(pair<int, int> old_pos, pair<int, int> new_pos) {
 	int diff_x = old_pos.first - new_pos.first;
 	int diff_y = old_pos.second - new_pos.second;
@@ -51,7 +34,8 @@ int calc_move(pair<int, int> old_pos, pair<int, int> new_pos) {
 	}
 }
 
-void generateArrays(int arrays[][201], int numArrays, int arraySize) {
+vector<vector<int>> generateArrays(int numArrays, int arraySize) {
+	vector<vector<int>> arrays(numArrays, vector<int>(arraySize + 1, 0));
 	srand(time(NULL)); // seed the random number generator with the current time
 	for (int i = 0; i < numArrays; i++) {
 		arrays[i][0] = 0;
@@ -59,6 +43,8 @@ void generateArrays(int arrays[][201], int numArrays, int arraySize) {
 			arrays[i][j] = rand() % 4 + 1; // generate random number between 1 and 4
 		}
 	}
+
+	return arrays;
 }
 
 bool no_way(int coordination[2], int** maze) {
@@ -78,18 +64,6 @@ bool no_way(int coordination[2], int** maze) {
 		return false;
 }
 
-vector<vector<int>> create_move_array(int x = NUM_PLAYERS, int y = NUM_MOVES)
-{
-	vector<vector<int>> moves;
-
-	for (int i = 0; i < x; i++)
-	{
-		moves.push_back(create_random_moves(y));
-	}
-
-	return moves;
-}
-
 int Evaluate(int suitability, int coordination[2], int next_coordination[2], int** maze, int End_coordination[2]) {
 	int now_length = pow((End_coordination[0] - coordination[0]), 2) + pow((End_coordination[1] - coordination[1]), 2);
 	int next_length = pow((End_coordination[0] - next_coordination[0]), 2) + pow((End_coordination[1] - next_coordination[1]), 2);
@@ -107,7 +81,7 @@ int Evaluate(int suitability, int coordination[2], int next_coordination[2], int
 	return suitability;
 }
 
-// ì í•©ë„ ìƒìœ„ 10ê°œ ê°œì²´ ì¤‘ ë‘ ê°œ ì„ íƒ
+// ÀûÇÕµµ »óÀ§ 10°³ °³Ã¼ Áß µÎ °³ ¼±ÅÃ
 void breeding(char A[], char B[])
 {
 	const int ARRAY_SIZE = 200;
@@ -165,7 +139,6 @@ public:
 	int id;
 	bool is_made_goal;
 	pair<int, int> start_position;
-	set<pair<int, int>> unique_position;
 	int speed = PLAYER_SPEED;
 
 
@@ -180,8 +153,6 @@ public:
 		this->position = vector<pair<int, int>>();
 		this->is_made_goal = false;
 		this->start_position = start_position;
-		this->unique_position = set<pair<int, int>>();
-		this->unique_position.insert(start_position);
 		this->x = start_position.first;
 		this->y = start_position.second;
 
@@ -255,7 +226,7 @@ public:
 		}
 
 		if (find(applicable_moves.begin(), applicable_moves.end(), new_coordination) != applicable_moves.end()
-			&& unique_position.find(new_coordination) == unique_position.end())
+			&& find(this->position.begin(), this->position.end(), new_coordination) == this->position.end())
 		{
 			this->MovePlayer(move);
 			return 0;
@@ -390,7 +361,7 @@ public:
 		}
 		this->turn = 1;
 
-		this->moves_array = create_move_array();
+		this->moves_array = generateArrays(ROWS, 200);
 		this->made_it_proportion = 0;
 		this->num_moves = NUM_MOVES;
 	}
@@ -446,39 +417,46 @@ public:
 		}
 	}
 
-	/*void on_execute() {
-		while (this->is_running) {
-
-			for (auto& player : this->players) {
-				vector<int> move = this->moves_array[player.id, this->turn - 1];
-				vector<int> new_move = player.CheckMove(move, player_known_walls);
+	int calc_madeit_prop() {
+		int madeit_sum = 0;
+		for (auto& player: this->players) {
+			if (player.is_made_goal) {
+				madeit_sum += 1;
 			}
 		}
-	}*/
+
+		return (madeit_sum / NUM_PLAYERS);
+	}
+
+	void on_execute() {
+		while (this->is_running) {
+
+
+			// Evaluate fitnesses
+
+			// Breed
+
+			// Players move
+
+			for (auto& player : this->players) {
+				int move = this->moves_array[player.id][static_cast<int32_t>(this->turn) - 1];
+				int new_move = player.CheckMove(move, this->player_known_walls);
+			
+				if (new_move != 0) {
+					this->moves_array[player.id][static_cast<int32_t>(this->turn) - 1] = new_move;
+				}
+
+				player.position.push_back(make_pair(player.x, player.y));
+			
+			}
+
+			this->on_loop();
+			this->turn += 1;
+		}
+	}
 
 	
 };
 
 
-
-
-		for (int i = 0; i < ROWS; ++i) {
-			for (int j = 0; j < COLS; ++j) {
-				infile >> maze[i][j];
-				cout << maze[i][j];
-				if (maze[i][j] == '#') {
-					this->collisions.push_back(make_pair(j, i));
-				}
-				else if (maze[i][j] == 'S') {
-					this->spawn_pos = make_pair(j, i);
-				}
-				else if (maze[i][j] == 'E') {
-					this->goal = make_pair(j, i);
-				}
-			}
-			cout << endl;
-		}
-
-	}
-};
 
