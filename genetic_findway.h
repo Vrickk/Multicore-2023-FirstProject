@@ -1,39 +1,182 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <set>
 #include <random>
 #include <string>
+#include <algorithm>
+#include <math.h>
+#include <ctime>
 #include <Python.h>
 
 #define PLAYER_SPEED 1
 #define NUM_MOVES 200
 #define DEAD_END_PENALTY 200
+#define NUM_PLAYERS 900
+
+#define ROWS 27
+#define COLS 27
 
 using namespace std;
 
-const vector<string> MOVE_OPTIONS = {"right", "left", "up", "down"};
+
+class Maze {
+public:
+	Maze() {
+		Py_Initialize();
+		
+		// Load the Python script and function
+		PyObject* pName = PyUnicode_FromString("module2");
+		PyObject* pModule = PyImport_Import(pName);
+		PyObject* pFunc = PyObject_GetAttrString(pModule, "initMaze");
+
+		// Call the Python function
+		PyObject_CallObject(pFunc, NULL);
+
+		// Cleanup
+		Py_DECREF(pFunc);
+		Py_DECREF(pModule);
+		Py_Finalize();
+	}
+
+};
 
 
-string calc_move(pair<int, int> old_pos, pair<int, int> new_pos) {
+vector<string> create_random_moves(int turns) {
+	vector<string> options{ "right", "left", "up", "down" };
+	vector<string> moves;
+
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_int_distribution<> dis(0, options.size() - 1);
+
+	for (int i = 0; i < turns; i++) {
+		int rand_index = dis(gen);
+		moves.push_back(options[rand_index]);
+	}
+
+	return moves;
+}
+
+int calc_move(pair<int, int> old_pos, pair<int, int> new_pos) {
 	int diff_x = old_pos.first - new_pos.first;
 	int diff_y = old_pos.second - new_pos.second;
 
-	if (diff_x < 0) return "right";
-	else if (diff_x > 0) return "left";
-	else if (diff_y < 0) return "up";
-	else if (diff_y > 0) return "down";
-	else if (diff_x == 0 && diff_y == 0) return "";
+	if (diff_x < 0) return 1;
+	else if (diff_x > 0) return 2;
+	else if (diff_y < 0) return 3;
+	else if (diff_y > 0) return 4;
+	else if (diff_x == 0 && diff_y == 0) return 0;
 	else {
 		cout << "Mistakes were made.\n" << endl;
 		printf("old pos: (%d, %d), new pos: (%d, %d)\n", old_pos.first, old_pos.second, new_pos.first, new_pos.second);
-		return "";
+		return 0;
 	}
 }
 
+void generateArrays(int arrays[][200], int numArrays, int arraySize) {
+	srand(time(NULL)); // seed the random number generator with the current time
+	for (int i = 0; i < numArrays; i++) {
+		for (int j = 0; j < arraySize; j++) {
+			arrays[i][j] = rand() % 4 + 1; // generate random number between 1 and 4
+		}
+	}
+}
+
+bool no_way(int coordination[2], int** maze) {
+	int count;
+	if (maze[coordination[0]][coordination[1] + 1] == '#')
+		count++;
+	if (maze[coordination[0]][coordination[1] - 1] == '#')
+		count++;
+	if (maze[coordination[0] + 1][coordination[1]] == '#')
+		count++;
+	if (maze[coordination[0] - 1][coordination[1]] == '3')
+		count++;
+
+	if (count == 3)
+		return true;
+	else
+		return false;
+}
+
+vector<vector<string>> create_move_array(int x = NUM_PLAYERS, int y = NUM_MOVES)
+{
+	vector<vector<string>> moves;
+
+	for (int i = 0; i < x; i++)
+	{
+		moves.push_back(create_random_moves(y));
+	}
+
+	return moves;
+}
+
+int Evaluate(int suitability, int coordination[2], int next_coordination[2], int** maze, int End_coordination[2]) {
+	int now_length = pow((End_coordination[0] - coordination[0]), 2) + pow((End_coordination[1] - coordination[1]), 2);
+	int next_length = pow((End_coordination[0] - next_coordination[0]), 2) + pow((End_coordination[1] - next_coordination[1]), 2);
+	if (maze[next_coordination[0]][next_coordination[1]] == 'V')
+		suitability -= 2;
+	else if (now_length > next_length)
+		suitability -= 1;
+	else if (now_length < next_length)
+		suitability += 1;
+	else if (no_way(next_coordination, maze))
+		suitability -= 10;
+	else if (next_coordination == End_coordination)
+		suitability += 30;
+}
+
+// 적합도 상위 10개 개체 중 두 개 선택
+void breeding(char A[], char B[])
+{
+	const int ARRAY_SIZE = 200;
+	const int NUM_EXCHANGES = 100;
+
+	vector<int> detectIndex_a, detectIndex_b;
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_int_distribution<int> rand(0, ARRAY_SIZE - 1);
+
+	char half_A[NUM_EXCHANGES], half_B[NUM_EXCHANGES];
+	char a[ARRAY_SIZE], b[ARRAY_SIZE];
+
+	for (int i = 0; i < ARRAY_SIZE; i++)
+	{
+		a[i] = A[i];
+		b[i] = B[i];
+	}
+
+	int randIndex;
+
+	for (int i = 0; i < NUM_EXCHANGES; i++)
+	{
+		do {
+			randIndex = rand(gen);
+		} while (find(detectIndex_a.begin(), detectIndex_a.end(), randIndex) != detectIndex_a.end());
+
+		detectIndex_a.push_back(randIndex);
+
+		half_A[i] = A[randIndex];
+		b[randIndex] = half_A[i];
+	}
+
+	for (int i = 0; i < NUM_EXCHANGES; i++)
+	{
+		do {
+			randIndex = rand(gen);
+		} while (find(detectIndex_b.begin(), detectIndex_b.end(), randIndex) != detectIndex_b.end());
+
+		detectIndex_b.push_back(randIndex);
+
+		half_B[i] = B[randIndex];
+		a[randIndex] = half_B[i];
+	}
+}
 
 class Player {
 private:
-	vector<string> move_list;
+	vector<int> move_list;
 	int fitness;
 	vector<pair<int, int>> position;
 	int id;
@@ -47,7 +190,7 @@ private:
 	int y;
 public:
 	Player(pair<int, int> start_position) {
-		this->move_list = vector<string>();
+		this->move_list = vector<int>();
 		this->fitness = 0;
 		this->id = -1;
 		this->position = vector<pair<int, int>>();
@@ -60,51 +203,64 @@ public:
 
 
 	}
-	void MovePlayer(string direction) {
-		if (direction == "right") {
-			x += speed;
+
+	int getId() {
+		return this->id;
+	}
+
+	void setId(int newId) {
+		this->id = newId;
+	}
+
+	// MOVE: 1 RIGHT 2 LEFT 3 UP 4 DOWN
+
+	void MovePlayer(int direction) { 
+		if (direction == 1) {
+			this->x += this->speed;
 		}
-		else if (direction == "left") {
-			x -= speed;
+		else if (direction == 2) {
+			this->x -= this->speed;
 		}
-		else if (direction == "up") {
-			y += speed;
+		else if (direction == 3) {
+			this->y += this->speed;
 		}
-		else if (direction == "down") {
-			y -= speed;
+		else if (direction == 4) {
+			this->y -= this->speed;
 		}
 		else {
 			cout << "Unknown Move.\n" << endl;
 		}
 	}
-	string CheckMove(string move, set<pair<int, int>> known_walls_set) {
-		if (speed == 0) return "";
+
+
+	int CheckMove(int move, set<pair<int, int>> known_walls_set) {
+		if (this->speed == 0) return 0;
 
 		pair<int, int> new_coordination;
 
-		if (move == "right") {
-			new_coordination = make_pair(x + speed, y);
+		if (move == 1) {
+			new_coordination = make_pair(this->x + this->speed, this->y);
 		}
-		else if (move == "left") {
-			new_coordination = make_pair(x - speed, y);
+		else if (move == 2) {
+			new_coordination = make_pair(this->x - this->speed, this->y);
 		}
-		else if (move == "up") {
-			new_coordination = make_pair(x, y + speed);
+		else if (move == 3) {
+			new_coordination = make_pair(this->x, this->y + this->speed);
 		}
-		else if (move == "left") {
-			new_coordination = make_pair(x - speed, y);
+		else if (move == 4) {
+			new_coordination = make_pair(this->x, this->y - this->speed);
 		}
 		else {
 			cout << move << endl;
-			return "";
+			return 0;
 		}
 	
 
 		vector<pair<int, int>> possible_moves = { 
-			make_pair(x + speed, y),
-			make_pair(x - speed, y), 
-			make_pair(x, y - speed), 
-			make_pair(x, y + speed)
+			make_pair(this->x + this->speed, this->y),
+			make_pair(this->x - this->speed, this->y),
+			make_pair(this->x, this->y + this->speed),
+			make_pair(this->x, this->y - this->speed)
 		};
 
 		vector<pair<int, int>> applicable_moves;
@@ -117,51 +273,110 @@ public:
 		if (find(applicable_moves.begin(), applicable_moves.end(), new_coordination) != applicable_moves.end()
 			&& unique_position.find(new_coordination) == unique_position.end())
 		{
-			move_list.push_back(move);
-			position.push_back(make_pair(x, y));
-			unique_position.insert(new_coordination);
-			MovePlayer(move);
-			return move;
+			this->MovePlayer(move);
+			return;
 		}
 
 		else {
 			if (applicable_moves.size() == 1) {
 				speed = 0;
 				fitness += DEAD_END_PENALTY;
-				return "";
+				return 0;
 			}
 
 			else {
 				vector<pair<int, int>> remainder;
-				set_difference(applicable_moves.begin(), applicable_moves.end(), unique_position.begin(), unique_position.end(), back_inserter(remainder));
+				set_difference(applicable_moves.begin(), applicable_moves.end(), known_walls_set.begin(), known_walls_set.end(), back_inserter(remainder));
+				set_difference(remainder.begin(), remainder.end(), position.begin(), position.end(), back_inserter(remainder));
 
 				if (remainder.empty()) {
 					speed = 0;
-					return "";
+					return 0;
 				}
 
 				else if (remainder.size() == 1) {
-					move_list.push_back(move);
-					position.push_back(make_pair(x, y));
-					unique_position.insert(remainder[0]);
-					MovePlayer(move);
-					return move;
+					pair<int, int> old_pos = make_pair(this->x, this->y);
+					pair<int, int> new_coord = remainder[0];
+					this->x = new_coord.first;
+					this->y = new_coord.second;
+
+					pair<int, int> new_pos = make_pair(this->x, this->y);
+
+					int what_move = calc_move(old_pos, new_pos);
+					return what_move;
 				}
 
 				else {
-					int rand_idx = rand() % remainder.size();
-					new_coordination = remainder[rand_idx];
-					string new_move = calc_move(make_pair(x, y), new_coordination);
-					move_list.push_back(new_move);
-					position.push_back(make_pair(x, y));
-					unique_position.insert(new_coordination);
-					MovePlayer(new_move);
-					return new_move;
+					pair<int, int> old_pos = make_pair(this->x, this->y);
+					pair<int, int> new_coord = remainder[rand() % remainder.size()];
+					this->x = new_coord.first;
+					this->y = new_coord.second;
+
+					pair<int, int> new_pos = make_pair(this->x, this->y);
+
+					int what_move = calc_move(old_pos, new_pos);
+					return what_move;
 				}
 			}
 		}
 
 	}
 
+};
+
+class App {
+private:
+	int num_players = NUM_PLAYERS;
+	int generation = 1;
+	vector<int> average_fitness;
+	vector<int> best_fitness;
+	Maze maze;
+
+public:
+	App() {
+		
+		maze = Maze();
+		
+		vector<Player> players;
+		for (auto player : players)
+		{
+			players.push_back(player());
+		}
+
+
+	}
+
+	void on_execute() {
+		for (auto player : players) {
+
+		}
+	}
+
+	
+};
+
+class Maze {
+private:
+	int rows = ROWS;
+	int cols = COLS;
+public:
+	Maze() {
+		char maze[ROWS][COLS];
+
+		ifstream infile("maze.txt");
+
+		for (int i = 0; i < ROWS; ++i) {
+			for (int j = 0; j < COLS; ++j) {
+				infile >> maze[i][j];
+			}
+		}
+
+		for (int i = 0; i < ROWS; ++i) {
+			for (int j = 0; j < COLS; ++j) {
+				cout << maze[i][j];
+			}
+			cout << endl;
+		}
+	}
 };
 
