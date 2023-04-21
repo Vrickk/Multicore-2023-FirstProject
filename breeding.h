@@ -8,15 +8,25 @@ using namespace std;
 const int GENE_SIZE = 50;
 const int ARRAY_SIZE = 201;
 
-// 적합도 상위 10개 개체 선정 -> top_arrays에 순서대로 넣음
-vector<int*> selectTopArrays(int arr[GENE_SIZE][ARRAY_SIZE])
+vector<vector<int>> selectTop(vector<vector<int>> &arr)
 {
-	sort(arr, arr + 50, [](const int* a, const int* b) {return a[0] > b[0]; });
+	int size = 201;
+	sort(arr.begin(), arr.end(), [](const vector<int>& a, const vector<int>& b) {return a[0] > b[0]; });
 
-	vector<int*> top_arrays;
+	vector<vector<int>> top_arrays(10, vector<int>(size));
 	for (int i = 0; i < 10; i++)
 	{
-		top_arrays.push_back(arr[i]);
+		for (int j = 0; j < size; j++)
+		{
+			top_arrays[i][j] = arr[i][j];
+			
+		}
+		int len = sizeof(top_arrays[i]) / sizeof(int);
+		if (len < size)
+		{
+			size = len;
+			top_arrays[i].resize(size);
+		}
 	}
 
 	return top_arrays;
@@ -35,7 +45,7 @@ void breeding(vector<int*>& top_arrays)
 	uniform_int_distribution<int> rand(1, ARRAY_SIZE - 1);
 	uniform_int_distribution<int> toprand(0, top_arrays.size());
 
-	// top_arrays에서 무작위로 두 개의 배열 선택
+
 	int idx1 = toprand(gen);
 	int idx2 = toprand(gen);
 	while (idx2 == idx1)
@@ -43,7 +53,6 @@ void breeding(vector<int*>& top_arrays)
 		idx2 = toprand(gen);
 	}
 
-	// 선택된 배열을 각각 A, B에 저장
 	int A[ARRAY_SIZE], B[ARRAY_SIZE];
 	for (int i = 0; i < ARRAY_SIZE; i++)
 	{
@@ -61,9 +70,10 @@ void breeding(vector<int*>& top_arrays)
 	int childcount = 0;
 	#pragma omp_parallel num_threads(4)
 	{
-		#pragma omp for
+		
 		for (int count = 0; count < 25; count++)
 		{
+			#pragma omp for
 			for (int i = 0; i < NUM_EXCHANGES; i++)
 			{
 				do {
@@ -79,6 +89,7 @@ void breeding(vector<int*>& top_arrays)
 			childcount++;
 			detectIndex_a.clear();
 
+			#pragma omp for
 			for (int i = 0; i < NUM_EXCHANGES; i++)
 			{
 				do {
@@ -101,7 +112,7 @@ void breeding(vector<int*>& top_arrays)
 	
 }
 
-/* main에서
-vector<int*> top_arrays = selectTopArrays(배열);
+/* main 
+vector<vector<int>> top_arrays = selectTop( - );
 breeding(top_arrays);
 */
