@@ -108,8 +108,9 @@ void breeding(vector<int*>& top_arrays)
 {
 	const int NUM_EXCHANGES = 100;
 	int half_A[NUM_EXCHANGES], half_B[NUM_EXCHANGES];
-	int a[ARRAY_SIZE], b[ARRAY_SIZE];
-	int c[GENE_SIZE][ARRAY_SIZE];
+	vector<int> a(ARRAY_SIZE);
+	vector<int> b(ARRAY_SIZE);
+	vector<vector<int>> c(GENE_SIZE, vector<int> (ARRAY_SIZE));
 
 	vector<int> detectIndex_a, detectIndex_b;
 	random_device rd;
@@ -141,7 +142,7 @@ void breeding(vector<int*>& top_arrays)
 
 	int randIndex;
 	int childcount = 0;
-#pragma omp_parallel num_threads(4)
+#pragma omp parallel num_threads(4)
 	{
 #pragma omp for
 		for (int count = 0; count < 25; count++)
