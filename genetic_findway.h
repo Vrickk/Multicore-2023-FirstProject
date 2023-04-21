@@ -548,8 +548,8 @@ public:
 		}
 	    }
 	}
-	void Evaludate_serial() {
-	#pragma omp for num_threads(n)
+	void Evaludate_parallel() {
+	#pragma omp parallel for num_threads(n)
 		for (auto player : players) {
 			for (auto i = player.move_list.begin() + 1; i != player.move_list.end(); ++i) {
 	    			while (player.is_collision(player.next_position, player.maze.maze))
