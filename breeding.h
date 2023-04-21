@@ -8,7 +8,7 @@ using namespace std;
 const int GENE_SIZE = 50;
 const int ARRAY_SIZE = 201;
 
-vector<vector<int>> selectTop(vector<vector<int>>& arr)
+vector<vector<int>> selectTop(vector<vector<int>> &arr)
 {
 	int size = 201;
 	sort(arr.begin(), arr.end(), [](const vector<int>& a, const vector<int>& b) {return a[0] > b[0]; });
@@ -32,7 +32,7 @@ vector<vector<int>> selectTop(vector<vector<int>>& arr)
 	return top_arrays;
 }
 
-int** breeding_serial(vector<int*>& top_arrays)
+int** breeding_serial(vector<vector<int>>& top_arrays)
 {
 	const int NUM_EXCHANGES = 100;
 	int half_A[NUM_EXCHANGES], half_B[NUM_EXCHANGES];
@@ -46,7 +46,8 @@ int** breeding_serial(vector<int*>& top_arrays)
 	mt19937 gen(rd());
 	uniform_int_distribution<int> rand(1, ARRAY_SIZE - 1);
 	uniform_int_distribution<int> toprand(0, top_arrays.size());
-
+	uniform_int_distribution<int> mut_gen(0, GENE_SIZE);
+	uniform_int_distribution<int> mut_arr(1, 4);
 
 	int idx1 = toprand(gen);
 	int idx2 = toprand(gen);
@@ -107,10 +108,32 @@ int** breeding_serial(vector<int*>& top_arrays)
 			break;
 	}
 
+	int randIndex_mug, randIndex_mua;
+	vector<int> detectIndex_mug, detectIndex_mua;
+	for (int i = 0; i < 5; i++)
+	{
+		do {
+			randIndex_mug = mut_gen(gen);
+		} while (find(detectIndex_mug.begin(), detectIndex_mug.end(), randIndex_mug) != detectIndex_mug.end());
+
+		detectIndex_mug.push_back(randIndex_mug);
+
+		for (int j = 0; j < 10; j++)
+		{
+			do {
+				randIndex_mua = rand(gen);
+			} while (find(detectIndex_mua.begin(), detectIndex_mua.end(), randIndex_mua) != detectIndex_mua.end());
+
+			detectIndex_mua.push_back(randIndex_mua);
+
+			c[randIndex_mug][randIndex_mua] = mut_arr(gen);
+		}
+	}
+
 	return c;
 }
 
-int** breeding_parallel(vector<int*>& top_arrays)
+int** breeding_parallel(vector<vector<int>>& top_arrays)
 {
 	const int NUM_EXCHANGES = 100;
 	int half_A[NUM_EXCHANGES], half_B[NUM_EXCHANGES];
@@ -124,7 +147,8 @@ int** breeding_parallel(vector<int*>& top_arrays)
 	mt19937 gen(rd());
 	uniform_int_distribution<int> rand(1, ARRAY_SIZE - 1);
 	uniform_int_distribution<int> toprand(0, top_arrays.size());
-
+	uniform_int_distribution<int> mut_gen(0, GENE_SIZE);
+	uniform_int_distribution<int> mut_arr(1, 4);
 
 	int idx1 = toprand(gen);
 	int idx2 = toprand(gen);
@@ -191,10 +215,30 @@ int** breeding_parallel(vector<int*>& top_arrays)
 		}
 	}
 
+	int randIndex_mug, randIndex_mua;
+	vector<int> detectIndex_mug, detectIndex_mua;
+
+	#pragma omp for
+	for (int i = 0; i < 5; i++)
+	{
+		do {
+			randIndex_mug = mut_gen(gen);
+		} while (find(detectIndex_mug.begin(), detectIndex_mug.end(), randIndex_mug) != detectIndex_mug.end());
+
+		detectIndex_mug.push_back(randIndex_mug);
+
+		for (int j = 0; j < 10; j++)
+		{
+			do {
+				randIndex_mua = rand(gen);
+			} while (find(detectIndex_mua.begin(), detectIndex_mua.end(), randIndex_mua) != detectIndex_mua.end());
+
+			detectIndex_mua.push_back(randIndex_mua);
+
+			c[randIndex_mug][randIndex_mua] = mut_arr(gen);
+		}
+	}
+
 	return c;
 }
 
-/* main
-vector<vector<int>> top_arrays = selectTop( - );
-breeding(top_arrays);
-*/
