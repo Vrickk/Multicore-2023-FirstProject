@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <math.h>
 #include <ctime>
+#include <omp.h>
 
 #define PLAYER_SPEED 1
 #define NUM_MOVES 200
@@ -15,6 +16,12 @@
 
 #define ROWS 25
 #define COLS 25
+
+#define GENERATION_THRESH 50
+#define MADEIT_THRESH 10
+
+const int GENE_SIZE = 50;
+const int ARRAY_SIZE = 201;
 
 using namespace std;
 
@@ -81,19 +88,50 @@ int Evaluate(int suitability, int coordination[2], int next_coordination[2], int
 	return suitability;
 }
 
-// 적합도 상위 10개 개체 중 두 개 선택
-void breeding(char A[], char B[])
+
+
+// 적합도 상위 10개 개체 선정 -> top_arrays에 순서대로 넣음
+vector<int*> selectTopArrays(int arr[GENE_SIZE][ARRAY_SIZE])
 {
-	const int ARRAY_SIZE = 200;
+	sort(arr, arr + 50, [](const int* a, const int* b) {return a[0] > b[0]; });
+
+	vector<int*> top_arrays;
+	for (int i = 0; i < 10; i++)
+	{
+		top_arrays.push_back(arr[i]);
+	}
+
+	return top_arrays;
+}
+
+void breeding(vector<int*>& top_arrays)
+{
 	const int NUM_EXCHANGES = 100;
+	int half_A[NUM_EXCHANGES], half_B[NUM_EXCHANGES];
+	int a[ARRAY_SIZE], b[ARRAY_SIZE];
+	int c[GENE_SIZE][ARRAY_SIZE];
 
 	vector<int> detectIndex_a, detectIndex_b;
 	random_device rd;
 	mt19937 gen(rd());
-	uniform_int_distribution<int> rand(0, ARRAY_SIZE - 1);
+	uniform_int_distribution<int> rand(1, ARRAY_SIZE - 1);
+	uniform_int_distribution<int> toprand(0, top_arrays.size());
 
-	char half_A[NUM_EXCHANGES], half_B[NUM_EXCHANGES];
-	char a[ARRAY_SIZE], b[ARRAY_SIZE];
+	// top_arrays에서 무작위로 두 개의 배열 선택
+	int idx1 = toprand(gen);
+	int idx2 = toprand(gen);
+	while (idx2 == idx1)
+	{
+		idx2 = toprand(gen);
+	}
+
+	// 선택된 배열을 각각 A, B에 저장
+	int A[ARRAY_SIZE], B[ARRAY_SIZE];
+	for (int i = 0; i < ARRAY_SIZE; i++)
+	{
+		A[i] = top_arrays[idx1][i];
+		B[i] = top_arrays[idx2][i];
+	}
 
 	for (int i = 0; i < ARRAY_SIZE; i++)
 	{
@@ -102,31 +140,53 @@ void breeding(char A[], char B[])
 	}
 
 	int randIndex;
-
-	for (int i = 0; i < NUM_EXCHANGES; i++)
+	int childcount = 0;
+#pragma omp_parallel num_threads(4)
 	{
-		do {
-			randIndex = rand(gen);
-		} while (find(detectIndex_a.begin(), detectIndex_a.end(), randIndex) != detectIndex_a.end());
+#pragma omp for
+		for (int count = 0; count < 25; count++)
+		{
+			for (int i = 0; i < NUM_EXCHANGES; i++)
+			{
+				do {
+					randIndex = rand(gen);
+				} while (find(detectIndex_a.begin(), detectIndex_a.end(), randIndex) != detectIndex_a.end());
 
-		detectIndex_a.push_back(randIndex);
+				detectIndex_a.push_back(randIndex);
 
-		half_A[i] = A[randIndex];
-		b[randIndex] = half_A[i];
+				half_A[i] = A[randIndex];
+				b[randIndex] = half_A[i];
+				c[childcount][i] = b[i];
+			}
+			childcount++;
+			detectIndex_a.clear();
+
+			for (int i = 0; i < NUM_EXCHANGES; i++)
+			{
+				do {
+					randIndex = rand(gen);
+				} while (find(detectIndex_b.begin(), detectIndex_b.end(), randIndex) != detectIndex_b.end());
+
+				detectIndex_b.push_back(randIndex);
+
+				half_B[i] = B[randIndex];
+				a[randIndex] = half_B[i];
+				c[childcount][i] = a[i];
+			}
+			childcount++;
+			detectIndex_b.clear();
+
+			if (childcount == 49)
+				break;
+		}
 	}
 
-	for (int i = 0; i < NUM_EXCHANGES; i++)
-	{
-		do {
-			randIndex = rand(gen);
-		} while (find(detectIndex_b.begin(), detectIndex_b.end(), randIndex) != detectIndex_b.end());
-
-		detectIndex_b.push_back(randIndex);
-
-		half_B[i] = B[randIndex];
-		a[randIndex] = half_B[i];
-	}
 }
+
+/* main에서
+vector<int*> top_arrays = selectTopArrays(배열);
+breeding(top_arrays);
+*/
 
 class Player {
 private:
@@ -292,24 +352,22 @@ public:
 
 		ifstream infile("maze.txt");
 
-		int bx = 0;
-		int by = 0;
-
+	
 		for (int i = 0; i < ROWS; ++i) {
 			string line;
 			getline(infile, line);
 			for (int j = 0; j < COLS; ++j) {
 				
-				maze[i][j] = line[j];
-				cout << maze[i][j];
+				maze[j][i] = line[j];
+				cout << maze[j][i];
 
-				if (maze[i][j] == '#') {
+				if (maze[j][i] == '#') {
 					this->collisions.push_back(make_pair(j, i));
 				}
-				else if (maze[i][j] == 'S') {
+				else if (maze[j][i] == 'S') {
 					this->spawn_pos = make_pair(j, i);
 				}
-				else if (maze[i][j] == 'E') {
+				else if (maze[j][i] == 'E') {
 					this->goal = make_pair(j, i);
 				}
 				
@@ -344,10 +402,12 @@ public:
 	int made_it_proportion;
 	int num_moves;
 	bool is_running = false;
+	int mode;
 
-	App() {
+	App(int mode) {
 		this->is_running = true;
 		this->maze = Maze();
+		this->mode = mode;
 		
 		for (int i = 0; i < this->num_players; i++)
 		{
@@ -434,7 +494,26 @@ public:
 
 			// Evaluate fitnesses
 
+			if (this->turn == this->num_moves || max_element(this->players.begin(), this->players.end(), [](const auto& a, const auto& b) {return a.speed < b.speed; })->speed == 0) {
+				this->made_it_proportion = this->calc_madeit_prop();
+
+				if (this->made_it_proportion > MADEIT_THRESH){
+					printf("%d of players made it.\n", this->made_it_proportion);
+					break;
+				}
+
+				if (this->generation == GENERATION_THRESH) {
+					printf("All generations have passed.\n");
+					break;
+				}
+
+			}
+
+
+
 			// Breed
+
+
 
 			// Players move
 
