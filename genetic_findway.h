@@ -91,26 +91,38 @@ int Evaluate(int suitability, int coordination[2], int next_coordination[2], int
 
 
 // 적합도 상위 10개 개체 선정 -> top_arrays에 순서대로 넣음
-vector<int*> selectTopArrays(int arr[GENE_SIZE][ARRAY_SIZE])
+vector<vector<int>> selectTop(vector<vector<int>>& arr)
 {
-	sort(arr, arr + 50, [](const int* a, const int* b) {return a[0] > b[0]; });
+	int size = 201;
+	sort(arr.begin(), arr.end(), [](const vector<int>& a, const vector<int>& b) {return a[0] > b[0]; });
 
-	vector<int*> top_arrays;
+	vector<vector<int>> top_arrays(10, vector<int>(size));
 	for (int i = 0; i < 10; i++)
 	{
-		top_arrays.push_back(arr[i]);
+		for (int j = 0; j < size; j++)
+		{
+			top_arrays[i][j] = arr[i][j];
+
+		}
+		int len = sizeof(top_arrays[i]) / sizeof(int);
+		if (len < size)
+		{
+			size = len;
+			top_arrays[i].resize(size);
+		}
 	}
 
 	return top_arrays;
 }
 
-void breeding(vector<int*>& top_arrays)
+vector<vector<int>> breeding_serial(vector<int*>& top_arrays)
 {
 	const int NUM_EXCHANGES = 100;
-	int half_A[NUM_EXCHANGES], half_B[NUM_EXCHANGES];
+	vector<int> half_A(NUM_EXCHANGES);
+	vector<int> half_B(NUM_EXCHANGES);
 	vector<int> a(ARRAY_SIZE);
 	vector<int> b(ARRAY_SIZE);
-	vector<vector<int>> c(GENE_SIZE, vector<int> (ARRAY_SIZE));
+	vector<vector<int>> c(GENE_SIZE, vector<int>(ARRAY_SIZE));
 
 	vector<int> detectIndex_a, detectIndex_b;
 	random_device rd;
@@ -118,7 +130,7 @@ void breeding(vector<int*>& top_arrays)
 	uniform_int_distribution<int> rand(1, ARRAY_SIZE - 1);
 	uniform_int_distribution<int> toprand(0, top_arrays.size());
 
-	// top_arrays에서 무작위로 두 개의 배열 선택
+
 	int idx1 = toprand(gen);
 	int idx2 = toprand(gen);
 	while (idx2 == idx1)
@@ -126,8 +138,8 @@ void breeding(vector<int*>& top_arrays)
 		idx2 = toprand(gen);
 	}
 
-	// 선택된 배열을 각각 A, B에 저장
-	int A[ARRAY_SIZE], B[ARRAY_SIZE];
+	vector<int> A(ARRAY_SIZE);
+	vector<int> B(ARRAY_SIZE);
 	for (int i = 0; i < ARRAY_SIZE; i++)
 	{
 		A[i] = top_arrays[idx1][i];
@@ -142,11 +154,92 @@ void breeding(vector<int*>& top_arrays)
 
 	int randIndex;
 	int childcount = 0;
+
+	for (int count = 0; count < 25; count++)
+	{
+		for (int i = 0; i < NUM_EXCHANGES; i++)
+		{
+			do {
+				randIndex = rand(gen);
+			} while (find(detectIndex_a.begin(), detectIndex_a.end(), randIndex) != detectIndex_a.end());
+
+			detectIndex_a.push_back(randIndex);
+
+			half_A[i] = A[randIndex];
+			b[randIndex] = half_A[i];
+			c[childcount][i] = b[i];
+		}
+		childcount++;
+		detectIndex_a.clear();
+
+		for (int i = 0; i < NUM_EXCHANGES; i++)
+		{
+			do {
+				randIndex = rand(gen);
+			} while (find(detectIndex_b.begin(), detectIndex_b.end(), randIndex) != detectIndex_b.end());
+
+			detectIndex_b.push_back(randIndex);
+
+			half_B[i] = B[randIndex];
+			a[randIndex] = half_B[i];
+			c[childcount][i] = a[i];
+		}
+		childcount++;
+		detectIndex_b.clear();
+
+		if (childcount == 49)
+			break;
+	}
+
+	return c;
+}
+
+vector<vector<int>> breeding_parallel(vector<int*>& top_arrays)
+{
+	const int NUM_EXCHANGES = 100;
+	vector<int> half_A(NUM_EXCHANGES);
+	vector<int> half_B(NUM_EXCHANGES);
+	vector<int> a(ARRAY_SIZE);
+	vector<int> b(ARRAY_SIZE);
+	vector<vector<int>> c(GENE_SIZE, vector<int>(ARRAY_SIZE));
+
+	vector<int> detectIndex_a, detectIndex_b;
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_int_distribution<int> rand(1, ARRAY_SIZE - 1);
+	uniform_int_distribution<int> toprand(0, top_arrays.size());
+
+
+	int idx1 = toprand(gen);
+	int idx2 = toprand(gen);
+	while (idx2 == idx1)
+	{
+		idx2 = toprand(gen);
+	}
+
+	vector<int> A(ARRAY_SIZE);
+	vector<int> B(ARRAY_SIZE);
+	for (int i = 0; i < ARRAY_SIZE; i++)
+	{
+		A[i] = top_arrays[idx1][i];
+		B[i] = top_arrays[idx2][i];
+	}
+
+	for (int i = 0; i < ARRAY_SIZE; i++)
+	{
+		a[i] = A[i];
+		b[i] = B[i];
+	}
+
+	int randIndex;
+	int childcount = 0;
+
 #pragma omp parallel num_threads(4)
 	{
-#pragma omp for
+
 		for (int count = 0; count < 25; count++)
 		{
+#pragma omp for
 			for (int i = 0; i < NUM_EXCHANGES; i++)
 			{
 				do {
@@ -162,6 +255,7 @@ void breeding(vector<int*>& top_arrays)
 			childcount++;
 			detectIndex_a.clear();
 
+#pragma omp for
 			for (int i = 0; i < NUM_EXCHANGES; i++)
 			{
 				do {
@@ -182,7 +276,9 @@ void breeding(vector<int*>& top_arrays)
 		}
 	}
 
+	return c;
 }
+
 
 /* main에서
 vector<int*> top_arrays = selectTopArrays(배열);
@@ -492,7 +588,7 @@ public:
 	void on_execute() {
 		while (this->is_running) {
 
-
+			vector<vector<int>> moves_lists;
 			// Evaluate fitnesses
 
 			if (this->turn == this->num_moves || max_element(this->players.begin(), this->players.end(), [](const auto& a, const auto& b) {return a.speed < b.speed; })->speed == 0) {
@@ -505,18 +601,35 @@ public:
 
 				if (this->generation == GENERATION_THRESH) {
 					printf("All generations have passed.\n");
+					printf("%d of players made it.\n", this->made_it_proportion);
 					break;
 				}
 
+
+
+
+
+				// Breed
+
+
+				if (this->mode == 0 || this->mode == 2)
+				{
+					 moves_lists = breeding_serial();
+				}
+
+				if (this->mode == 1 || this->mode == 3)
+				{
+					moves_lists = breeding_parallel();
+				}
+
+
+				this->restart(moves_lists);
 			}
 
 
-
-			// Breed
-
-
-
 			// Players move
+
+			
 
 			for (auto& player : this->players) {
 				int move = this->moves_array[player.id][static_cast<int32_t>(this->turn) - 1];
