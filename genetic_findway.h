@@ -54,43 +54,48 @@ vector<vector<int>> generateArrays(int numArrays, int arraySize) {
 	return arrays;
 }
 
-bool no_way(int coordination[2], int** maze) {
-	int count = 0;
-	if (maze[coordination[0]][coordination[1] + 1] == '#')
-		count++;
-	if (maze[coordination[0]][coordination[1] - 1] == '#')
-		count++;
-	if (maze[coordination[0] + 1][coordination[1]] == '#')
-		count++;
-	if (maze[coordination[0] - 1][coordination[1]] == '3')
-		count++;
+bool no_way(pair<int, int> pos, int** maze) {
+    int count = 0;
+    if (maze[pos.first][pos.second + 1] == '#')
+        count++;
+    if (maze[pos.first][pos.second - 1] == '#')
+        count++;
+    if (maze[pos.first + 1][pos.second] == '#')
+        count++;
+    if (pos.first < 0) {
+        if (maze[0][pos.second] == '#')
+            count++;
+        else if(maze[pos.first - 1][pos.second] == '#')
+            count++;
+    }
+    
 
-	if (count == 3)
-		return true;
-	else
-		return false;
+    if (count > 3)
+        return true;
+    else
+        return false;
 }
 
-int Evaluate(int suitability, int coordination[2], int next_coordination[2], int** maze, int End_coordination[2]) {
-	int now_length = pow((End_coordination[0] - coordination[0]), 2) + pow((End_coordination[1] - coordination[1]), 2);
-	int next_length = pow((End_coordination[0] - next_coordination[0]), 2) + pow((End_coordination[1] - next_coordination[1]), 2);
-	if (maze[next_coordination[0]][next_coordination[1]] == 'V')
-		suitability -= 2;
-	else if (now_length > next_length)
-		suitability -= 1;
-	else if (now_length < next_length)
-		suitability += 1;
-	else if (no_way(next_coordination, maze))
-		suitability -= 10;
-	else if (next_coordination == End_coordination)
-		suitability += 30;
+int Evaluate(int suitability, pair<int, int> pos, pair<int, int> next_pos, int** maze, pair<int, int> goal) {
+    int now_length = pow((goal.first - next_pos.first), 2) + pow((goal.second - next_pos.second), 2);
+    int next_length = pow((goal.first - next_pos.first), 2) + pow((goal.second - next_pos.second), 2);
+    if (maze[next_pos.first][next_pos.second] == 'V' || maze[next_pos.first][next_pos.second] == 'S')
+        suitability -= 2;
+    else if (now_length > next_length)
+        suitability -= 1;
+    else if (now_length < next_length)
+        suitability += 1;
+    else if (no_way(next_pos, maze))
+        suitability -= 10;
+    else if (next_pos == goal)
+        suitability += 30;
 
-	return suitability;
+    return suitability;
 }
 
 
 
-// ¿˚«’µµ ªÛ¿ß 10∞≥ ∞≥√º º±¡§ -> top_arraysø° º¯º≠¥Î∑Œ ≥÷¿Ω
+// Ï†ÅÌï©ÎèÑ ÏÉÅÏúÑ 10Í∞ú Í∞úÏ≤¥ ÏÑ†Ï†ï -> top_arraysÏóê ÏàúÏÑúÎåÄÎ°ú ÎÑ£Ïùå
 vector<vector<int>> selectTop(vector<vector<int>>& arr)
 {
 	int size = 201;
@@ -280,8 +285,8 @@ vector<vector<int>> breeding_parallel(vector<int*>& top_arrays)
 }
 
 
-/* mainø°º≠
-vector<int*> top_arrays = selectTopArrays(πËø≠);
+/* mainÏóêÏÑú
+vector<int*> top_arrays = selectTopArrays(Î∞∞Ïó¥);
 breeding(top_arrays);
 */
 
@@ -455,17 +460,17 @@ public:
 			getline(infile, line);
 			for (int j = 0; j < COLS; ++j) {
 				
-				maze[j][i] = line[j];
-				cout << maze[j][i];
+				maze[i][j] = line[i];
+				cout << maze[i][j];
 
-				if (maze[j][i] == '#') {
-					this->collisions.push_back(make_pair(j, i));
+				if (maze[i][j] == '#') {
+					this->collisions.push_back(make_pair(i, j));
 				}
-				else if (maze[j][i] == 'S') {
-					this->spawn_pos = make_pair(j, i);
+				else if (maze[i][j] == 'S') {
+					this->spawn_pos = make_pair(i, j);
 				}
-				else if (maze[j][i] == 'E') {
-					this->goal = make_pair(j, i);
+				else if (maze[i][j] == 'E') {
+					this->goal = make_pair(i, j);
 				}
 				
 			}
@@ -473,8 +478,8 @@ public:
 			
 		}
 
-		cout << "   " << this->spawn_pos.first << ", " << this->spawn_pos.second << " is start point.\n";
-		cout << "   " << this->goal.first << ", " << this->goal.second << " is end point.\n";
+		cout << "   " << this->spawn_pos.second << ", " << this->spawn_pos.first << " is start point.\n";
+		cout << "   " << this->goal.second << ", " << this->goal.first << " is end point.\n";
 
 
 		cout << endl;
@@ -500,7 +505,27 @@ public:
 	int num_moves;
 	bool is_running = false;
 	int mode;
-
+	void Evaluate_serial() {
+	    for (auto player : players) {
+		for (auto i = player.move_list.begin() + 1; i != player.move_list.end(); ++i) {
+		    while (player.is_collision(player.next_position, player.maze.maze))
+			player.move_list[i] = player.new_move();
+		    player.move_list[0] = Evaluate(player.move_list[0], player.position, player.next_position(player.position, player.move_list[i]), player.maze.maze, player.maze.goal);
+		    player.movePlayer(player.move_list[i];
+		}
+	    }
+	}
+	void Evaludate_serial() {
+	#pragma omp for num_threads(n)
+		for (auto player : players) {
+			for (auto i = player.move_list.begin() + 1; i != player.move_list.end(); ++i) {
+	    			while (player.is_collision(player.next_position, player.maze.maze))
+					player.move_list[i] = player.new_move();
+	    			player.move_list[0] = Evaluate(player.move_list[0], player.position, player.next_position(player.position, player.move_list[i]), player.maze.maze, player.maze.goal);
+	    			player.movePlayer(player.move_list[i];
+			}
+	    	}
+	}
 	App(int mode) {
 		this->is_running = true;
 		this->maze = Maze();
@@ -584,7 +609,7 @@ public:
 
 		return (madeit_sum / NUM_PLAYERS);
 	}
-
+	
 	void on_execute() {
 		while (this->is_running) {
 
