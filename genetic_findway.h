@@ -294,7 +294,6 @@ class Player {
 private:
 	
 public:
-
 	vector<int> move_list;
 	int fitness;
 	vector<pair<int, int>> position;
@@ -302,8 +301,10 @@ public:
 	bool is_made_goal;
 	pair<int, int> start_position;
 	int speed = PLAYER_SPEED;
-
-
+	pair<int, int> position;
+	pair<int, int> next_position;
+	Maze maze();
+	
 	int x;
 	int y;
 
@@ -319,6 +320,38 @@ public:
 		this->y = start_position.second;
 
 
+	}
+
+	void next_position(pair<int, int> position, int move) {
+		if (move == 1) {
+		    this -> next_position.first = position.first + 1;
+		    if (next_position.first >= ROWS)
+			this -> next_position.first = ROWS - 1;
+		}
+		else if (move == 2) {
+		    this -> next_position.first = position[0].first - 1;
+		    if (next_position.first < 0)
+			this -> next_position.first = 0;
+		}
+		else if (move == 3) {
+		    this -> next_position.second = position.second + 1;
+		    if (next_position.second >= ROWS)
+			this-> next_position.second = ROWS - 1;
+		}
+		else if (move == 4) {
+		    this ->next_position.second = position.second - 1;
+		    if (next_position.first >= ROWS)
+			this -> next_position.second = 0;
+		}
+	}
+	bool is_collision(pair<int, int> next_position, char maze[25][25]) {
+		if (maze[next_position.first][next_position.second] == '#')
+		    return true;
+		return false;
+	    	}
+	int new_move() {
+		srand((unsigned)time(NULL));
+		return rand() % 4 + 1;
 	}
 
 	int getId() {
